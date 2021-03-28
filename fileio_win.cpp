@@ -82,6 +82,14 @@ File::File(const wchar_t* filepath) {
     PrintErrorMessage("Open file error!");
     return;
   }
+
+  if (preserveFileTimes) {
+    //Prevent file operations using the given handle from modifying the last access time
+    FILETIME ffTime;
+    ffTime.dwLowDateTime = ffTime.dwHighDateTime = 0xFFFFFFFF;
+    SetFileTime(hFile_, &ffTime, &ffTime, &ffTime));
+  }
+
   size_ = GetFileSize(hFile_, nullptr);
   hMap_ = CreateFileMapping(hFile_, nullptr, PAGE_READWRITE, 0, 0, nullptr);
   if (hMap_ == INVALID_HANDLE_VALUE) {

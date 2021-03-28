@@ -16,6 +16,8 @@
 #include <sys/types.h>
 #endif  // _WIN32
 
+bool preserveFileTimes = false;
+
 class File {
  public:
 #ifdef _WIN32
