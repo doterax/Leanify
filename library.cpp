@@ -68,11 +68,21 @@ struct codecvt : std::codecvt<I, E, S> {
   ~codecvt() {}
 };
 
+
 std::string pathToString(const std::filesystem::path& path) {
   typedef codecvt<std::filesystem::path::value_type, char, std::mbstate_t> Codecvt;
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
   std::wstring_convert<Codecvt, std::filesystem::path::value_type> converter;
+
+#pragma GCC diagnostic pop
+
   return converter.to_bytes(std::filesystem::temp_directory_path());
 }
+
+
 
 class DirectoryStorage : public Storage {
  private:

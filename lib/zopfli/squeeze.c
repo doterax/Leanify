@@ -338,7 +338,7 @@ static void FollowPath(ZopfliBlockState* s,
   size_t windowstart = instart > ZOPFLI_WINDOW_SIZE
       ? instart - ZOPFLI_WINDOW_SIZE : 0;
 
-  size_t total_length_test = 0;
+  [[maybe_unused]] size_t total_length_test = 0;
 
   if (instart == inend) return;
 

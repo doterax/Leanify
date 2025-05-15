@@ -1616,7 +1616,7 @@ struct ExtractZlib { // Zlib decompression and information extraction
 
   void inflateHuffmanBlock(std::vector<unsigned char>& out,
                            const unsigned char* in, size_t& bp, size_t& pos, size_t inlength, unsigned long btype) {
-    size_t numcodes = 0, numlit = 0, numlen = 0; //for logging
+    [[maybe_unused]] size_t numcodes = 0, numlit = 0, numlen = 0; //for logging
     if(btype == 1) { generateFixedTrees(codetree, codetreeD); }
     else if(btype == 2) { getTreeInflateDynamic(codetree, codetreeD, in, bp, inlength); if(error) return; }
     for(;;) {
