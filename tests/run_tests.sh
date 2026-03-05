@@ -36,6 +36,32 @@ to_native() {
     fi
 }
 
+# Portable binary file comparison (cmp may not exist in minimal MSYS2)
+files_equal() {
+    if command -v cmp >/dev/null 2>&1; then
+        cmp -s "$1" "$2"
+    elif command -v diff >/dev/null 2>&1; then
+        diff -q "$1" "$2" >/dev/null 2>&1
+    else
+        # Fallback: compare checksums
+        local h1 h2
+        if command -v sha256sum >/dev/null 2>&1; then
+            h1=$(sha256sum < "$1" | cut -d' ' -f1)
+            h2=$(sha256sum < "$2" | cut -d' ' -f1)
+        elif command -v md5sum >/dev/null 2>&1; then
+            h1=$(md5sum < "$1" | cut -d' ' -f1)
+            h2=$(md5sum < "$2" | cut -d' ' -f1)
+        elif command -v shasum >/dev/null 2>&1; then
+            h1=$(shasum < "$1" | cut -d' ' -f1)
+            h2=$(shasum < "$2" | cut -d' ' -f1)
+        else
+            echo "ERROR: No file comparison tool found (cmp, diff, sha256sum, md5sum, shasum)" >&2
+            exit 1
+        fi
+        [ "$h1" = "$h2" ]
+    fi
+}
+
 # Resolve leanify binary
 if [ $# -ge 1 ]; then
     LEANIFY="$1"
@@ -116,7 +142,7 @@ for f in "$TEMP1"/*; do
         DETERMINISM_OK=false
         continue
     fi
-    if cmp -s "$f" "$TEMP2/$fname"; then
+    if files_equal "$f" "$TEMP2/$fname"; then
         echo "  OK:   $fname"
     else
         echo "  FAIL: $fname differs between runs"
@@ -151,7 +177,7 @@ for f in "$EXPECTED_DIR"/*; do
         CORRECTNESS_OK=false
         continue
     fi
-    if cmp -s "$f" "$TEMP1/$fname"; then
+    if files_equal "$f" "$TEMP1/$fname"; then
         echo "  OK:   $fname"
     else
         EXPECTED_SIZE=$(wc -c < "$f" | tr -d ' ')

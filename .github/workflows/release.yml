@@ -95,6 +95,7 @@ jobs:
             mingw-w64-x86_64-gcc
             make
             zip
+            diffutils
 
       - name: Build
         run: make -j$(nproc)

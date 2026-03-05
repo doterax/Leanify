@@ -96,6 +96,7 @@ jobs:
           install: >-
             mingw-w64-x86_64-gcc
             make
+            diffutils
 
       - name: Compiler version
         run: gcc --version
