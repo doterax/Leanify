@@ -1,0 +1,76 @@
+[
+  [
+    {
+      "__type__": "cc.Prefab",
+      "_name": "wofPuzzleFish",
+      "data": {
+        "__id__": 1
+      }
+    },
+    {
+      "__type__": "cc.Node",
+      "_name": "wofPuzzleFish",
+      "_level": 1,
+      "_components": [
+        {
+          "__type__": "cc.Sprite",
+          "node": {
+            "__id__": 1
+          },
+          "_spriteFrame": {
+            "__uuid__": "f0++iK3QVFhqtfXAKtAZ0W"
+          },
+          "_sizeMode": 0
+        }
+      ],
+      "_prefab": {
+        "__type__": "cc.PrefabInfo",
+        "root": {
+          "__id__": 1
+        },
+        "asset": {
+          "__uuid__": "c6gq9BFvFK6JNeHjW54KKY"
+        },
+        "fileId": "27FbClVOxFeaNSwciA42lw"
+      },
+      "_contentSize": {
+        "__type__": "cc.Size",
+        "width": 96,
+        "height": 145
+      },
+      "_scale": {
+        "__type__": "cc.Vec3",
+        "x": 0.7,
+        "y": 0.7,
+        "z": 1
+      }
+    }
+  ],
+  {
+    "__type__": "cc.SpriteFrame",
+    "content": {
+      "name": "puzzle_pot",
+      "texture": "f8nNsDfBVHO5zalf83Scak",
+      "rect": [
+        0,
+        0,
+        63,
+        91
+      ],
+      "offset": [
+        0,
+        0
+      ],
+      "originalSize": [
+        63,
+        91
+      ],
+      "capInsets": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  }
+]
