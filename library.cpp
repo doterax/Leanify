@@ -5,7 +5,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <locale>
 #include <string>
 
 #include <fstream>
@@ -63,17 +62,6 @@ int is_directory_exists(const std::string& path) {
     return 0;
 }
 
-template <class I, class E, class S>
-struct codecvt : std::codecvt<I, E, S> {
-  ~codecvt() {}
-};
-
-std::string pathToString(const std::filesystem::path& path) {
-  typedef codecvt<std::filesystem::path::value_type, char, std::mbstate_t> Codecvt;
-  std::wstring_convert<Codecvt, std::filesystem::path::value_type> converter;
-  return converter.to_bytes(std::filesystem::temp_directory_path());
-}
-
 class DirectoryStorage : public Storage {
  private:
   std::string _pathToDirectory;
@@ -91,7 +79,7 @@ class DirectoryStorage : public Storage {
  public:
   DirectoryStorage(const std::string pathToDirectory) : _pathToDirectory(pathToDirectory) {
     if (_pathToDirectory == "*") {
-      _pathToDirectory = pathToString(std::filesystem::temp_directory_path());
+      _pathToDirectory = std::filesystem::temp_directory_path().string();
       _pathToDirectory += "leanify_library";
     }
     std::filesystem::create_directories(_pathToDirectory);
