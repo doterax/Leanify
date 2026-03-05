@@ -11,6 +11,7 @@
 
 #ifndef _WIN32
 #include <ftw.h>
+#include <unistd.h>
 #endif
 
 #include <CLI/CLI11.hpp>
