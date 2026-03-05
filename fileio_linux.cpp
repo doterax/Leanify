@@ -54,6 +54,8 @@ File::File(const char* filepath) {
 }
 
 void File::UnMapFile(size_t new_size) {
+  if (msync(fp_, size_, MS_SYNC) == -1)
+    perror("msync");
   if (munmap(fp_, size_) == -1)
     perror("munmap");
   if (new_size)
@@ -61,5 +63,6 @@ void File::UnMapFile(size_t new_size) {
       perror("ftruncate");
 
   close(fd_);
+  fd_ = -1;
   fp_ = nullptr;
 }

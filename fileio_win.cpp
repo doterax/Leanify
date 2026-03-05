@@ -77,34 +77,55 @@ void TraversePath(const wchar_t* dir, int callback(const wchar_t* file_path)) {
 
 File::File(const wchar_t* filepath) {
   hFile_ = CreateFile(filepath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
-                      FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_WRITE_THROUGH, nullptr);
+                      FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
   if (hFile_ == INVALID_HANDLE_VALUE) {
     PrintErrorMessage("Open file error!");
     return;
   }
-  size_ = GetFileSize(hFile_, nullptr);
+  LARGE_INTEGER file_size;
+  if (!GetFileSizeEx(hFile_, &file_size)) {
+    PrintErrorMessage("GetFileSize error!");
+    CloseHandle(hFile_);
+    hFile_ = INVALID_HANDLE_VALUE;
+    return;
+  }
+  size_ = static_cast<size_t>(file_size.QuadPart);
   hMap_ = CreateFileMapping(hFile_, nullptr, PAGE_READWRITE, 0, 0, nullptr);
-  if (hMap_ == INVALID_HANDLE_VALUE) {
+  if (hMap_ == nullptr) {
     PrintErrorMessage("Map file error!");
+    CloseHandle(hFile_);
+    hFile_ = INVALID_HANDLE_VALUE;
     return;
   }
   fp_ = MapViewOfFile(hMap_, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+  if (fp_ == nullptr) {
+    PrintErrorMessage("MapViewOfFile error!");
+    CloseHandle(hMap_);
+    hMap_ = nullptr;
+    CloseHandle(hFile_);
+    hFile_ = INVALID_HANDLE_VALUE;
+  }
 }
 
 void File::UnMapFile(size_t new_size) {
-  if (new_size < size_)
-    if (!FlushViewOfFile(fp_, 0))
-      PrintErrorMessage("Write file error!");
+  if (!FlushViewOfFile(fp_, 0))
+    PrintErrorMessage("Write file error!");
 
   if (!UnmapViewOfFile(fp_))
     PrintErrorMessage("UnmapViewOfFile error!");
 
   CloseHandle(hMap_);
+  hMap_ = nullptr;
+
   if (new_size) {
-    SetFilePointer(hFile_, new_size, nullptr, FILE_BEGIN);
-    if (!SetEndOfFile(hFile_))
+    LARGE_INTEGER li;
+    li.QuadPart = static_cast<LONGLONG>(new_size);
+    if (!SetFilePointerEx(hFile_, li, nullptr, FILE_BEGIN))
+      PrintErrorMessage("SetFilePointer error!");
+    else if (!SetEndOfFile(hFile_))
       PrintErrorMessage("SetEndOfFile error!");
   }
   CloseHandle(hFile_);
+  hFile_ = INVALID_HANDLE_VALUE;
   fp_ = nullptr;
 }

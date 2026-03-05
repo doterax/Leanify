@@ -37,7 +37,7 @@ class File {
     return fp_;
   }
 
-  unsigned int GetSize() const {
+  size_t GetSize() const {
     return size_;
   }
 

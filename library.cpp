@@ -38,6 +38,8 @@ class FileEntry : public LibraryEntry {
   }
   size_t Load(void* data, size_t dataSize) override {
     auto size = std::filesystem::file_size(_path);
+    if (size > dataSize)
+      size = dataSize;
     std::ifstream fin(_path, std::ios_base::binary);
     fin.read(static_cast<char*>(data), size);
     fin.close();
