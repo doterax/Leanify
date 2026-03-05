@@ -1,6 +1,9 @@
 #include "main.h"
 
 #include <climits>
+#include <csignal>
+#include <cstdlib>
+#include <atomic>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -26,6 +29,50 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using std::string;
+
+namespace {
+void SignalHandler(int sig) {
+  const char* name = "Unknown signal";
+  switch (sig) {
+    case SIGSEGV: name = "SIGSEGV (Segmentation fault)"; break;
+    case SIGABRT: name = "SIGABRT (Abort)"; break;
+    case SIGFPE:  name = "SIGFPE (Floating point exception)"; break;
+    case SIGILL:  name = "SIGILL (Illegal instruction)"; break;
+  }
+  fprintf(stderr, "\nFatal signal caught: %s (signal %d)\n", name, sig);
+  fflush(stderr);
+  _exit(128 + sig);
+}
+
+void InstallSignalHandlers() {
+  std::signal(SIGSEGV, SignalHandler);
+  std::signal(SIGABRT, SignalHandler);
+  std::signal(SIGFPE,  SignalHandler);
+  std::signal(SIGILL,  SignalHandler);
+}
+
+#ifdef _WIN32
+LONG WINAPI CrashHandler(EXCEPTION_POINTERS* ep) {
+  DWORD code = ep->ExceptionRecord->ExceptionCode;
+  void* addr = ep->ExceptionRecord->ExceptionAddress;
+  fprintf(stderr, "\nUnhandled exception 0x%08lX at address %p\n", code, addr);
+  switch (code) {
+    case EXCEPTION_ACCESS_VIOLATION:
+      fprintf(stderr, "ACCESS_VIOLATION: %s address %p\n",
+              ep->ExceptionRecord->ExceptionInformation[0] ? "writing" : "reading",
+              reinterpret_cast<void*>(ep->ExceptionRecord->ExceptionInformation[1]));
+      break;
+    case EXCEPTION_STACK_OVERFLOW:
+      fprintf(stderr, "STACK_OVERFLOW\n");
+      break;
+  }
+  fflush(stderr);
+  return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
+}  // namespace
+
+static std::atomic<int> error_count{0};
 
 template <typename T>
 std::string ToString(const T a_value, const int n = 2) {
@@ -55,7 +102,8 @@ int ProcessFile(const std::wstring& file_path) {
 int ProcessFile(const std::string& file_path) {
   const std::string& filename = file_path;
 #endif  // _WIN32
-  
+
+  try {
 
   if (!parallel_processing)
     cout << "Processing: " << filename << endl;
@@ -80,7 +128,12 @@ int ProcessFile(const std::string& file_path) {
     } else {
       new_size = libraryEntry->Load(filePointer, original_size);
       delete libraryEntry;
-      reusedFromLibrary = true;
+      if (new_size == 0) {
+        // Library load failed (race condition or corrupt cache), process normally
+        new_size = LeanifyFile(filePointer, original_size, 0, filename);
+      } else {
+        reusedFromLibrary = true;
+      }
     }
 
     std::string log;
@@ -104,6 +157,14 @@ int ProcessFile(const std::string& file_path) {
     cout << log << endl;
 
     input_file.UnMapFile(new_size);
+  }
+
+  } catch (const std::exception& e) {
+    cerr << "Error processing " << filename << ": " << e.what() << endl;
+    error_count++;
+  } catch (...) {
+    cerr << "Unknown error processing " << filename << endl;
+    error_count++;
   }
 
   return 0;
@@ -160,6 +221,11 @@ int main() {
 #else
 int main(int argc, char** argv) {
 #endif  // _WIN32
+
+  InstallSignalHandlers();
+#ifdef _WIN32
+  SetUnhandledExceptionFilter(CrashHandler);
+#endif
 
   is_fast = false;
   is_verbose = false;
@@ -291,7 +357,13 @@ int main(int argc, char** argv) {
   tf::Executor executor(parallel_tasks);
   executor.run(taskflow).wait();
 
+  int errors = error_count.load();
+  if (errors > 0)
+    cout << "Finished with " << errors << " error(s)." << endl;
+  else
+    cout << "Finished." << endl;
+
   PauseIfNotTerminal();
 
-  return 0;
+  return errors > 0 ? 1 : 0;
 }
