@@ -109,21 +109,36 @@ File::File(const wchar_t* filepath) {
 
 void File::UnMapFile(size_t new_size) {
   if (!FlushViewOfFile(fp_, 0))
-    PrintErrorMessage("Write file error!");
+    PrintErrorMessage("FlushViewOfFile error!");
 
-  if (!UnmapViewOfFile(fp_))
+  bool unmapped = UnmapViewOfFile(fp_);
+  if (!unmapped)
     PrintErrorMessage("UnmapViewOfFile error!");
 
   CloseHandle(hMap_);
   hMap_ = nullptr;
 
-  if (new_size) {
+  if (new_size && unmapped) {
     LARGE_INTEGER li;
     li.QuadPart = static_cast<LONGLONG>(new_size);
-    if (!SetFilePointerEx(hFile_, li, nullptr, FILE_BEGIN))
+    if (!SetFilePointerEx(hFile_, li, nullptr, FILE_BEGIN)) {
       PrintErrorMessage("SetFilePointer error!");
-    else if (!SetEndOfFile(hFile_))
-      PrintErrorMessage("SetEndOfFile error!");
+    } else {
+      // Retry SetEndOfFile - external processes (antivirus, search indexer)
+      // may hold temporary file mapping sections in parallel mode.
+      bool truncated = false;
+      for (int attempt = 0; attempt < 5; attempt++) {
+        if (SetEndOfFile(hFile_)) {
+          truncated = true;
+          break;
+        }
+        if (GetLastError() != ERROR_USER_MAPPED_FILE)
+          break;
+        Sleep(100 * (attempt + 1));
+      }
+      if (!truncated)
+        PrintErrorMessage("SetEndOfFile error!");
+    }
   }
   CloseHandle(hFile_);
   hFile_ = INVALID_HANDLE_VALUE;

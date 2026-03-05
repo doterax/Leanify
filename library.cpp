@@ -32,16 +32,35 @@ class FileEntry : public LibraryEntry {
     return std::filesystem::exists(_path);
   }
   void Save(void* data, size_t dataSize) override {
-    std::ofstream fout(_path, std::ios_base::binary);
+    // Write to a temp file and rename for atomicity (thread-safety in parallel mode)
+    auto tmpPath = _path + ".tmp";
+    std::ofstream fout(tmpPath, std::ios_base::binary);
+    if (!fout.is_open())
+      return;
     fout.write(static_cast<const char*>(data), dataSize);
     fout.close();
+    if (fout.fail()) {
+      std::filesystem::remove(tmpPath);
+      return;
+    }
+    std::error_code ec;
+    std::filesystem::rename(tmpPath, _path, ec);
+    if (ec)
+      std::filesystem::remove(tmpPath);
   }
   size_t Load(void* data, size_t dataSize) override {
-    auto size = std::filesystem::file_size(_path);
+    std::error_code ec;
+    auto size = std::filesystem::file_size(_path, ec);
+    if (ec || size == 0)
+      return 0;
     if (size > dataSize)
       size = dataSize;
     std::ifstream fin(_path, std::ios_base::binary);
+    if (!fin.is_open())
+      return 0;
     fin.read(static_cast<char*>(data), size);
+    if (fin.fail())
+      return 0;
     fin.close();
     return size;
   }
