@@ -30,8 +30,10 @@ using std::endl;
 using std::string;
 
 Format* GetType(void* file_pointer, size_t file_size, const string& filename, int depth) {
-  if (depth > max_depth)
+  if (depth > max_depth) {
+    VerbosePrint("Max depth ", max_depth, " reached, skipping.");
     return new Format(file_pointer, file_size, depth);
+  }
 
   if (!filename.empty()) {
     size_t dot = filename.find_last_of('.');
