@@ -1,9 +1,8 @@
 #include "main.h"
 
 #include <climits>
-#include <cstring>
-#include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -37,7 +36,7 @@ std::string ToString(const T a_value, const int n = 2) {
 }
 
 
-const std::string BuildSize(size_t size) {
+std::string BuildSize(size_t size) {
   if (size < 1024)
     return std::to_string(size) + " B";
   else if (size < 1024 * 1024)
@@ -78,7 +77,7 @@ int ProcessFile(const std::string& file_path) {
       if (libraryEntry)
         libraryEntry->Save(filePointer, new_size);
       delete libraryEntry;
-    } else if (libraryEntry->isExists()) {
+    } else {
       new_size = libraryEntry->Load(filePointer, original_size);
       delete libraryEntry;
       reusedFromLibrary = true;
@@ -88,15 +87,19 @@ int ProcessFile(const std::string& file_path) {
     if (parallel_processing)
       log = "Processed: " + filename + "\n";
 
-    log += 
-        BuildSize(original_size) + 
-        " -> " + 
-        BuildSize(new_size) +
-        ((!reusedFromLibrary) ? "\tLeanified: " : "\tReused: ") + 
-        BuildSize(original_size - new_size) + 
-        " ("  + 
-        ToString(100 - 100.0 * new_size / original_size) + 
-        "%)";
+    if (original_size > 0 && new_size <= original_size) {
+      log +=
+          BuildSize(original_size) +
+          " -> " +
+          BuildSize(new_size) +
+          ((!reusedFromLibrary) ? "\tLeanified: " : "\tReused: ") +
+          BuildSize(original_size - new_size) +
+          " (" +
+          ToString(100 - 100.0 * new_size / original_size) +
+          "%)";
+    } else {
+      log += BuildSize(original_size) + " -> " + BuildSize(new_size);
+    }
 
     cout << log << endl;
 
@@ -121,20 +124,18 @@ tf::Taskflow taskflow;
 
 #ifdef _WIN32
 int EnqueueProcessFileTask(const wchar_t* file_path) {
-  std::wstring* filePath = new std::wstring(file_path);
+  std::wstring filePath(file_path);
 #else
 // written like this in order to be callback function of ftw()
 int EnqueueProcessFileTask(const char* file_path, const struct stat* sb = nullptr, int typeflag = FTW_F) {
   if (typeflag != FTW_F)
     return 0;
-  std::string* filePath = new std::string(file_path);
+  std::string filePath(file_path);
 #endif  // _WIN32
 
-  auto task = [filePath]() { 
-      ProcessFile(*filePath); 
-      delete filePath;
-  };
-  taskflow.emplace(task);
+  taskflow.emplace([filePath = std::move(filePath)]() {
+    ProcessFile(filePath);
+  });
   return 0;
 }
 
@@ -150,10 +151,11 @@ int main() {
   std::vector<char*> argv_ptrs(argc);
   for (int a = 0; a < argc; a++) {
     int len = WideCharToMultiByte(CP_UTF8, 0, wargv[a], -1, nullptr, 0, nullptr, nullptr);
-    arg_strings[a].resize(len);
+    arg_strings[a].resize(len - 1);
     WideCharToMultiByte(CP_UTF8, 0, wargv[a], -1, &arg_strings[a][0], len, nullptr, nullptr);
     argv_ptrs[a] = &arg_strings[a][0];
   }
+  LocalFree(wargv);
   char** argv = argv_ptrs.data();
 #else
 int main(int argc, char** argv) {
