@@ -6,27 +6,27 @@
 using std::cerr;
 using std::endl;
 
-std::vector<uint8_t> ReadFile(const std::filesystem::path& filepath) {
+std::optional<std::vector<uint8_t>> ReadFile(const std::filesystem::path& filepath) {
   std::error_code ec;
   auto file_size = std::filesystem::file_size(filepath, ec);
   if (ec) {
     cerr << "Error getting file size: " << filepath.string() << ": " << ec.message() << endl;
-    return {};
+    return std::nullopt;
   }
   if (file_size == 0)
-    return {};
+    return std::vector<uint8_t>{};
 
   std::ifstream fin(filepath, std::ios::binary);
   if (!fin) {
     cerr << "Error opening file: " << filepath.string() << endl;
-    return {};
+    return std::nullopt;
   }
 
   std::vector<uint8_t> data(static_cast<size_t>(file_size));
   fin.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(data.size()));
   if (!fin) {
     cerr << "Error reading file: " << filepath.string() << endl;
-    return {};
+    return std::nullopt;
   }
   return data;
 }

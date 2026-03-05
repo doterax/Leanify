@@ -106,10 +106,11 @@ int ProcessFile(const std::filesystem::path& file_path) {
   if (!parallel_processing)
     cout << "Processing: " << filename << endl;
 
-  auto data = ReadFile(file_path);
-  if (data.empty())
+  auto data_opt = ReadFile(file_path);
+  if (!data_opt || data_opt->empty())
     return 0;
 
+  auto& data = *data_opt;
   size_t original_size = data.size();
 
   size_t new_size(0);
@@ -122,10 +123,8 @@ int ProcessFile(const std::filesystem::path& file_path) {
     new_size = LeanifyFile(data.data(), original_size, 0, filename);
     if (libraryEntry)
       libraryEntry->Save(data.data(), new_size);
-    delete libraryEntry;
   } else {
     new_size = libraryEntry->Load(data.data(), original_size);
-    delete libraryEntry;
     if (new_size == 0) {
       // Library load failed (race condition or corrupt cache), process normally
       new_size = LeanifyFile(data.data(), original_size, 0, filename);

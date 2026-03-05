@@ -4,10 +4,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <vector>
 
-// Read entire file into a vector. Returns empty vector on error.
-std::vector<uint8_t> ReadFile(const std::filesystem::path& filepath);
+// Read entire file into a vector. Returns nullopt on error, empty vector for empty files.
+std::optional<std::vector<uint8_t>> ReadFile(const std::filesystem::path& filepath);
 
 // Write data to file atomically (temp file + rename). Returns true on success.
 bool WriteFile(const std::filesystem::path& filepath, const uint8_t* data, size_t size);
