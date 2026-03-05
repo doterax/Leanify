@@ -1,0 +1,3 @@
+# Test files must remain byte-identical across platforms for comparison
+tests/input/** binary
+tests/output/** binary

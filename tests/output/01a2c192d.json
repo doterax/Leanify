@@ -1,0 +1,76 @@
+[
+  {
+    "__type__": "cc.SpriteFrame",
+    "content": {
+      "name": "banksale_button",
+      "texture": "bfGd3Z4IlLHZq/AhjeE19d",
+      "rect": [
+        0,
+        0,
+        133,
+        54
+      ],
+      "offset": [
+        0,
+        0
+      ],
+      "originalSize": [
+        133,
+        54
+      ],
+      "capInsets": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  [
+    {
+      "__type__": "cc.Prefab",
+      "_name": "bank_sale_top_panel_button",
+      "data": {
+        "__id__": 1
+      }
+    },
+    {
+      "__type__": "cc.Node",
+      "_name": "bank_sale_top_panel_button",
+      "_level": 1,
+      "_components": [
+        {
+          "__type__": "cc.Sprite",
+          "node": {
+            "__id__": 1
+          },
+          "_spriteFrame": {
+            "__uuid__": "88Gl1x94lDCa8kxDCOwivs"
+          },
+          "_sizeMode": 0
+        }
+      ],
+      "_prefab": {
+        "__type__": "cc.PrefabInfo",
+        "root": {
+          "__id__": 1
+        },
+        "asset": {
+          "__uuid__": "c2bJNkJS1GHZFa9gs83Oef"
+        },
+        "fileId": "b3MQWqUi1DNqP0txC6+0wk"
+      },
+      "_contentSize": {
+        "__type__": "cc.Size",
+        "width": 135,
+        "height": 55
+      },
+      "_scale": {
+        "__type__": "cc.Vec3",
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    }
+  ]
+]

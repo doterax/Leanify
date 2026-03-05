@@ -8,3 +8,4 @@ Clang-Release/
 *.res
 *.o
 *.a
+.test_tmp_*
