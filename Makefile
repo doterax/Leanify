@@ -22,7 +22,7 @@ ifeq ($(OS), Windows_NT)
     ifneq ($(filter clang%,$(CC)),)
         LDFLAGS += -fuse-ld=lld
     else
-        LDFLAGS += -s
+        LDFLAGS += -s -static
     endif
 else
     SYSTEM  := $(shell uname -s)
@@ -38,7 +38,7 @@ ifeq ($(SYSTEM), Darwin)
     LDLIBS  += -liconv
 else ifeq ($(SYSTEM), Linux)
     # -s is "obsolete" on mac, not supported by lld on Windows
-    LDFLAGS += -s
+    LDFLAGS += -s -static
 endif
 
 ifeq ($(SYSTEM), Windows)
@@ -61,11 +61,11 @@ $(LZMA_OBJ):    CFLAGS += -Wno-unknown-warning-option -Wno-dangling-pointer
 $(ZOPFLI_OBJ):  CFLAGS += -Wno-unused-function
 
 asan: CFLAGS += -g -fsanitize=address -fno-omit-frame-pointer
-asan: LDFLAGS := -fsanitize=address $(filter-out -s,$(LDFLAGS))
+asan: LDFLAGS := -fsanitize=address $(filter-out -s -static,$(LDFLAGS))
 asan: leanify
 
 debug: CFLAGS := $(filter-out -O3,$(CFLAGS)) -O0 -g -fno-omit-frame-pointer
-debug: LDFLAGS := $(filter-out -s -flto,$(LDFLAGS))
+debug: LDFLAGS := $(filter-out -s -flto -static,$(LDFLAGS))
 debug: CFLAGS := $(filter-out -flto,$(CFLAGS))
 debug: leanify
 
