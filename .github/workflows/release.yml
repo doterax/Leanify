@@ -1,0 +1,123 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Linux build
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: make -j$(nproc)
+
+      - name: Package
+        run: tar czf leanify-linux-x86_64.tar.gz leanify
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: leanify-linux-x86_64
+          path: leanify-linux-x86_64.tar.gz
+
+  build-macos-arm:
+    name: macOS ARM build
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: make -j$(sysctl -n hw.ncpu)
+
+      - name: Package
+        run: tar czf leanify-macos-arm64.tar.gz leanify
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: leanify-macos-arm64
+          path: leanify-macos-arm64.tar.gz
+
+  build-macos-intel:
+    name: macOS Intel build
+    runs-on: macos-15-intel
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: make -j$(sysctl -n hw.ncpu)
+
+      - name: Package
+        run: tar czf leanify-macos-x86_64.tar.gz leanify
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: leanify-macos-x86_64
+          path: leanify-macos-x86_64.tar.gz
+
+  build-windows:
+    name: Windows build
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            make
+            zip
+
+      - name: Build
+        run: make -j$(nproc)
+
+      - name: Package
+        run: zip leanify-windows-x86_64.zip leanify.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: leanify-windows-x86_64
+          path: leanify-windows-x86_64.zip
+
+  release:
+    name: Create Release
+    needs: [build-linux, build-macos-arm, build-macos-intel, build-windows]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/leanify-linux-x86_64/leanify-linux-x86_64.tar.gz
+            artifacts/leanify-macos-arm64/leanify-macos-arm64.tar.gz
+            artifacts/leanify-macos-x86_64/leanify-macos-x86_64.tar.gz
+            artifacts/leanify-windows-x86_64/leanify-windows-x86_64.zip

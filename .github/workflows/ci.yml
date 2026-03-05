@@ -1,22 +1,23 @@
 name: CI
 
-on: [ push, pull_request ]
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
 
 jobs:
-  build:
-    name: ${{ matrix.compiler.cc }} build on ${{ matrix.os }}
+  build-linux:
+    name: ${{ matrix.compiler.cc }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os:
           - ubuntu-22.04
           - ubuntu-24.04
-          - macos-15
-          - macos-26
         compiler:
           - { cc: gcc, cxx: g++ }
           - { cc: clang, cxx: clang++ }
-
       fail-fast: false
 
     env:
@@ -24,10 +25,80 @@ jobs:
       CXX: ${{ matrix.compiler.cxx }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-      - name: compiler version
+      - name: Compiler version
         run: ${{ matrix.compiler.cc }} --version
 
-      - name: make
-        run: make
+      - name: Build
+        run: make -j$(nproc)
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: leanify-${{ matrix.os }}-${{ matrix.compiler.cc }}
+          path: leanify
+
+  build-macos:
+    name: ${{ matrix.compiler.cc }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - macos-15-intel
+          - macos-latest
+        compiler:
+          - { cc: gcc, cxx: g++ }
+          - { cc: clang, cxx: clang++ }
+      fail-fast: false
+
+    env:
+      CC: ${{ matrix.compiler.cc }}
+      CXX: ${{ matrix.compiler.cxx }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compiler version
+        run: ${{ matrix.compiler.cc }} --version
+
+      - name: Build
+        run: make -j$(sysctl -n hw.ncpu)
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: leanify-${{ matrix.os }}-${{ matrix.compiler.cc }}
+          path: leanify
+
+  build-windows:
+    name: mingw on windows-latest
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            make
+
+      - name: Compiler version
+        run: gcc --version
+
+      - name: Build
+        run: make -j$(nproc)
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: leanify-windows-mingw
+          path: leanify.exe

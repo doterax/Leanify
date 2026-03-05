@@ -1,4 +1,4 @@
-Leanify [![GitHub Actions CI](https://github.com/JayXon/Leanify/actions/workflows/ci.yml/badge.svg)](https://github.com/JayXon/Leanify/actions) [![Windows Build status](https://ci.appveyor.com/api/projects/status/2p9i3ru8apwq2uic?svg=true)](https://ci.appveyor.com/project/JayXon/leanify) [![Download](https://img.shields.io/github/downloads/JayXon/Leanify/total.svg)](https://github.com/JayXon/Leanify/releases) [![Latest Release](https://img.shields.io/github/release/JayXon/Leanify.svg)](https://github.com/JayXon/Leanify/releases/latest) [![GitHub license](https://img.shields.io/github/license/JayXon/Leanify.svg)](LICENSE)
+Leanify [![CI](https://github.com/doterax/Leanify/actions/workflows/ci.yml/badge.svg)](https://github.com/doterax/Leanify/actions) [![Download](https://img.shields.io/github/downloads/doterax/Leanify/total.svg)](https://github.com/doterax/Leanify/releases) [![Latest Release](https://img.shields.io/github/release/doterax/Leanify.svg)](https://github.com/doterax/Leanify/releases/latest) [![GitHub license](https://img.shields.io/github/license/doterax/Leanify.svg)](LICENSE)
 =======
 
 Leanify is a lightweight lossless file minifier/optimizer. It removes unnecessary data (debug information, comments, metadata, etc.) and recompress the file to reduce file size. It will not reduce image quality at all.
@@ -214,9 +214,9 @@ Remove comment in `End of central directory record`.
 
 ## Downloads
 
-[Stable Releases](https://github.com/JayXon/Leanify/releases/)
+[Stable Releases](https://github.com/doterax/Leanify/releases/)
 
-[Windows Nightly Build](https://ci.appveyor.com/project/JayXon/leanify)
+> This is a maintained fork of [JayXon/Leanify](https://github.com/JayXon/Leanify).
 
 
 
