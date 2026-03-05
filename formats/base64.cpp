@@ -102,6 +102,11 @@ size_t Base64Encode(const uint8_t* in, size_t in_len, uint8_t* out) {
 }  // namespace
 
 size_t Base64::Leanify(size_t size_leanified /*= 0*/) {
+  if (size_ == 0) {
+    fp_ -= size_leanified;
+    return 0;
+  }
+
   // 4 base64 character contains information of 3 bytes
   size_t binary_len = size_ * 3 / 4;
   std::vector<uint8_t> binary_data(binary_len);

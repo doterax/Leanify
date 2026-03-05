@@ -138,6 +138,9 @@ Format* GetType(void* file_pointer, size_t file_size, const string& filename, in
 // return new size
 size_t LeanifyFile(void* file_pointer, size_t file_size, size_t size_leanified /*= 0*/,
                    const string& filename /*= ""*/, int depth /*= 1*/) {
+  if (file_pointer == nullptr || file_size == 0) {
+    return file_size;
+  }
   Format* f = GetType(file_pointer, file_size, filename, depth);
   size_t r = f->Leanify(size_leanified);
   delete f;
