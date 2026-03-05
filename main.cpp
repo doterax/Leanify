@@ -180,7 +180,7 @@ int main(int argc, char** argv) {
   is_pause = !getenv("PROMPT");
 #endif  // _WIN32
 
-  CLI::App app{"Leanify " VERSION_STR "\nFork: https://github.com/doterax/Leanify"};
+  CLI::App app{"Leanify " VERSION_STR "\nFork: https://github.com/doterax/Leanify\nBuilt with " COMPILER_STR " (" ARCH_STR ")"};
   app.get_formatter()->column_width(40);
 
   app.add_option("-i,--iteration", iterations,

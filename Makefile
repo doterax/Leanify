@@ -8,7 +8,7 @@ ZOPFLIPNG_OBJ   := lib/zopflipng/lodepng/lodepng.o lib/zopflipng/lodepng/lodepng
 CFLAGS      += -Wall -Werror -O3 -flto
 CPPFLAGS    += -I./lib
 CXXFLAGS    += $(CFLAGS) -std=c++17 -fno-rtti
-LDFLAGS     += -flto -lpthread
+LDFLAGS     += -flto
 
 PREFIX ?= /usr/local
 BINDIR := $(PREFIX)/bin
@@ -16,9 +16,17 @@ INSTALL ?= install
 
 ifeq ($(OS), Windows_NT)
     SYSTEM  := Windows
-    LDLIBS  += -lshlwapi
+    LDLIBS  += -lshlwapi -lshell32
+    CPPFLAGS += -D_CRT_SECURE_NO_WARNINGS
+    # Clang on Windows requires lld for LTO
+    ifneq ($(filter clang%,$(CC)),)
+        LDFLAGS += -fuse-ld=lld
+    else
+        LDFLAGS += -s
+    endif
 else
     SYSTEM  := $(shell uname -s)
+    LDFLAGS += -lpthread
 endif
 
 # -lstdc++fs supported only on Linux
@@ -28,23 +36,25 @@ endif
 
 ifeq ($(SYSTEM), Darwin)
     LDLIBS  += -liconv
-else
-    # -s is "obsolete" on mac
+else ifeq ($(SYSTEM), Linux)
+    # -s is "obsolete" on mac, not supported by lld on Windows
     LDFLAGS += -s
 endif
 
 ifeq ($(SYSTEM), Windows)
     LEANIFY_OBJ += fileio_win.o
+    TARGET := leanify.exe
 else
     LEANIFY_OBJ += fileio_linux.o
+    TARGET := leanify
 endif
 
 .PHONY:     leanify asan install uninstall clean
 
 leanify:    $(LEANIFY_OBJ) $(LZMA_OBJ) $(MOZJPEG_OBJ) $(PUGIXML_OBJ) $(ZOPFLI_OBJ) $(ZOPFLIPNG_OBJ)
-	$(CXX) $^ $(LDFLAGS) $(LDLIBS) -o $@
+	$(CXX) $^ $(LDFLAGS) $(LDLIBS) -o $(TARGET)
 
-$(LEANIFY_OBJ): CFLAGS += -Wextra -Wno-unused-parameter
+$(LEANIFY_OBJ): CFLAGS += -Wextra -Wno-unused-parameter -Wno-c++20-extensions
 
 $(LZMA_OBJ):    CFLAGS += -Wno-unknown-warning-option -Wno-dangling-pointer
 
@@ -56,10 +66,10 @@ asan: leanify
 
 install: leanify
 	mkdir -p $(DESTDIR)$(BINDIR)
-	$(INSTALL) -m 755 leanify $(DESTDIR)$(BINDIR)/leanify
+	$(INSTALL) -m 755 $(TARGET) $(DESTDIR)$(BINDIR)/leanify
 
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/leanify
 
 clean:
-	rm -f $(LEANIFY_OBJ) $(LZMA_OBJ) $(MOZJPEG_OBJ) $(PUGIXML_OBJ) $(ZOPFLI_OBJ) $(ZOPFLIPNG_OBJ) leanify
+	rm -f $(LEANIFY_OBJ) $(LZMA_OBJ) $(MOZJPEG_OBJ) $(PUGIXML_OBJ) $(ZOPFLI_OBJ) $(ZOPFLIPNG_OBJ) $(TARGET)
