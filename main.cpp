@@ -4,13 +4,17 @@
 #include <csignal>
 #include <cstdlib>
 #include <atomic>
+#include <filesystem>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
 
+#ifdef _WIN32
+#include <Windows.h>
+#endif
+
 #ifndef _WIN32
-#include <ftw.h>
 #include <unistd.h>
 #endif
 
@@ -94,70 +98,65 @@ std::string BuildSize(size_t size) {
 }
 
 
-#ifdef _WIN32
-int ProcessFile(const std::wstring& file_path) {
-  char mbs[MAX_PATH] = { 0 };
-  WideCharToMultiByte(CP_ACP, 0, file_path.c_str(), -1, mbs, sizeof(mbs) - 1, nullptr, nullptr);
-  string filename(mbs);
-#else
-int ProcessFile(const std::string& file_path) {
-  const std::string& filename = file_path;
-#endif  // _WIN32
+int ProcessFile(const std::filesystem::path& file_path) {
+  std::string filename = file_path.string();
 
   try {
 
   if (!parallel_processing)
     cout << "Processing: " << filename << endl;
 
-  File input_file(file_path.c_str());
+  auto data = ReadFile(file_path);
+  if (data.empty())
+    return 0;
 
-  if (input_file.IsOK()) {
-    size_t original_size = input_file.GetSize();
+  size_t original_size = data.size();
 
-    size_t new_size(0);
-    string libraryTag = ToString(iterations) + (zopflipng_lossy_transparent ? "lossy" : "lossless") +
-                        (is_fast ? "no_zopflipng" : "zopflipng");
+  size_t new_size(0);
+  string libraryTag = ToString(iterations) + (zopflipng_lossy_transparent ? "lossy" : "lossless") +
+                      (is_fast ? "no_zopflipng" : "zopflipng");
 
-    bool reusedFromLibrary = false;
-    auto filePointer = input_file.GetFilePointer();
-    auto libraryEntry = Library::GetEntry(filePointer, original_size, libraryTag.c_str());
-    if (!libraryEntry || !libraryEntry->isExists()) {
-      new_size = LeanifyFile(filePointer, original_size, 0, filename);
-      if (libraryEntry)
-        libraryEntry->Save(filePointer, new_size);
-      delete libraryEntry;
+  bool reusedFromLibrary = false;
+  auto libraryEntry = Library::GetEntry(data.data(), original_size, libraryTag.c_str());
+  if (!libraryEntry || !libraryEntry->isExists()) {
+    new_size = LeanifyFile(data.data(), original_size, 0, filename);
+    if (libraryEntry)
+      libraryEntry->Save(data.data(), new_size);
+    delete libraryEntry;
+  } else {
+    new_size = libraryEntry->Load(data.data(), original_size);
+    delete libraryEntry;
+    if (new_size == 0) {
+      // Library load failed (race condition or corrupt cache), process normally
+      new_size = LeanifyFile(data.data(), original_size, 0, filename);
     } else {
-      new_size = libraryEntry->Load(filePointer, original_size);
-      delete libraryEntry;
-      if (new_size == 0) {
-        // Library load failed (race condition or corrupt cache), process normally
-        new_size = LeanifyFile(filePointer, original_size, 0, filename);
-      } else {
-        reusedFromLibrary = true;
-      }
+      reusedFromLibrary = true;
     }
+  }
 
-    std::string log;
-    if (parallel_processing)
-      log = "Processed: " + filename + "\n";
+  std::string log;
+  if (parallel_processing)
+    log = "Processed: " + filename + "\n";
 
-    if (original_size > 0 && new_size <= original_size) {
-      log +=
-          BuildSize(original_size) +
-          " -> " +
-          BuildSize(new_size) +
-          ((!reusedFromLibrary) ? "\tLeanified: " : "\tReused: ") +
-          BuildSize(original_size - new_size) +
-          " (" +
-          ToString(100 - 100.0 * new_size / original_size) +
-          "%)";
-    } else {
-      log += BuildSize(original_size) + " -> " + BuildSize(new_size);
-    }
+  if (original_size > 0 && new_size <= original_size) {
+    log +=
+        BuildSize(original_size) +
+        " -> " +
+        BuildSize(new_size) +
+        ((!reusedFromLibrary) ? "\tLeanified: " : "\tReused: ") +
+        BuildSize(original_size - new_size) +
+        " (" +
+        ToString(100 - 100.0 * new_size / original_size) +
+        "%)";
+  } else {
+    log += BuildSize(original_size) + " -> " + BuildSize(new_size);
+  }
 
-    cout << log << endl;
+  cout << log << endl;
 
-    input_file.UnMapFile(new_size);
+  if (new_size < original_size) {
+    if (!WriteFile(file_path, data.data(), new_size))
+      cerr << "Error writing file: " << filename << endl;
   }
 
   } catch (const std::exception& e) {
@@ -182,47 +181,8 @@ void PauseIfNotTerminal() {
 #endif  // _WIN32
 }
 
-tf::Taskflow taskflow;
 
-#ifdef _WIN32
-int EnqueueProcessFileTask(const wchar_t* file_path) {
-  std::wstring filePath(file_path);
-#else
-// written like this in order to be callback function of ftw()
-int EnqueueProcessFileTask(const char* file_path, const struct stat* sb = nullptr, int typeflag = FTW_F) {
-  if (typeflag != FTW_F)
-    return 0;
-  std::string filePath(file_path);
-#endif  // _WIN32
-
-  taskflow.emplace([filePath = std::move(filePath)]() {
-    ProcessFile(filePath);
-  });
-  return 0;
-}
-
-
-#ifdef _WIN32
-int main() {
-  int argc;
-  wchar_t* command_line = GetCommandLineW();
-  wchar_t** wargv = CommandLineToArgvW(command_line, &argc);
-
-  // Convert wide argv to UTF-8 for CLI11
-  std::vector<std::string> arg_strings(argc);
-  std::vector<char*> argv_ptrs(argc);
-  for (int a = 0; a < argc; a++) {
-    int len = WideCharToMultiByte(CP_UTF8, 0, wargv[a], -1, nullptr, 0, nullptr, nullptr);
-    arg_strings[a].resize(len - 1);
-    WideCharToMultiByte(CP_UTF8, 0, wargv[a], -1, &arg_strings[a][0], len, nullptr, nullptr);
-    argv_ptrs[a] = &arg_strings[a][0];
-  }
-  LocalFree(wargv);
-  char** argv = argv_ptrs.data();
-#else
 int main(int argc, char** argv) {
-#endif  // _WIN32
-
   InstallSignalHandlers();
 #ifdef _WIN32
   SetUnhandledExceptionFilter(CrashHandler);
@@ -322,15 +282,7 @@ int main(int argc, char** argv) {
 
   if (!library_path.empty()) {
     try {
-#ifdef _WIN32
-      // Convert UTF-8 library path back to wide string for Windows API
-      int wlen = MultiByteToWideChar(CP_UTF8, 0, library_path.c_str(), -1, nullptr, 0);
-      std::wstring wlibrary(wlen, 0);
-      MultiByteToWideChar(CP_UTF8, 0, library_path.c_str(), -1, &wlibrary[0], wlen);
-      Library::Initialize(wlibrary);
-#else
       Library::Initialize(library_path);
-#endif
       cout << "Library storage: " << Library::GetStorageName() << endl << endl;
     } catch (const std::runtime_error& e) {
       cerr << "Error: " << e.what() << endl << endl;
@@ -338,17 +290,21 @@ int main(int argc, char** argv) {
     }
   }
 
-  // Process all input paths
+  // Phase 1: Collect all file paths
+  std::vector<std::filesystem::path> work_items;
   for (const auto& path : paths) {
-#ifdef _WIN32
-    // Convert UTF-8 path to wide string for Windows TraversePath
-    int wlen = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, nullptr, 0);
-    std::wstring wpath(wlen, 0);
-    MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, &wpath[0], wlen);
-    TraversePath(wpath.c_str(), EnqueueProcessFileTask);
-#else
-    TraversePath(path.c_str(), EnqueueProcessFileTask);
-#endif
+    auto files = CollectFiles(std::filesystem::path(path));
+    work_items.insert(work_items.end(),
+                      std::make_move_iterator(files.begin()),
+                      std::make_move_iterator(files.end()));
+  }
+
+  // Phase 2: Create tasks and execute
+  tf::Taskflow taskflow;
+  for (auto& file_path : work_items) {
+    taskflow.emplace([fp = std::move(file_path)]() {
+      ProcessFile(fp);
+    });
   }
 
   size_t parallel_tasks = 1;

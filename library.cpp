@@ -1,15 +1,10 @@
 #include "library.h"
 
 #include <string>
-
+#include <filesystem>
 #include <fstream>
 
-#ifdef _WIN32
-#include <Windows.h>
-#endif
-
 #include <SHA1/sha1.hpp>
-#include "filesystem.h"
 
 class Storage {
  public:
@@ -101,17 +96,9 @@ class DirectoryStorage : public Storage {
   }
 };
 
-#ifdef _WIN32
-void Library::Initialize(const std::wstring& library) {
-  char mbs[MAX_PATH] = { 0 };
-  WideCharToMultiByte(CP_ACP, 0, library.c_str(), -1, mbs, sizeof(mbs) - 1, nullptr, nullptr);
-  LibraryStorage = new DirectoryStorage(mbs);
-}
-#else
 void Library::Initialize(const std::string& library) {
   LibraryStorage = new DirectoryStorage(library);
 }
-#endif
 LibraryEntry* Library::GetEntry(void* data, size_t dataSize, const char* tag) {
   return LibraryStorage ? LibraryStorage->GetEntry(data, dataSize, tag) : nullptr;
 }

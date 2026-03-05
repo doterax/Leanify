@@ -2,66 +2,17 @@
 #define FILEIO_H_
 
 #include <cstddef>
+#include <cstdint>
+#include <filesystem>
+#include <vector>
 
-#ifdef _WIN32
-#ifndef UNICODE
-#define UNICODE
-#endif  // UNICODE
-#ifndef _UNICODE
-#define _UNICODE
-#endif  // _UNICODE
-#include <Windows.h>
-#else
-#include <sys/stat.h>
-#include <sys/types.h>
-#endif  // _WIN32
+// Read entire file into a vector. Returns empty vector on error.
+std::vector<uint8_t> ReadFile(const std::filesystem::path& filepath);
 
-class File {
- public:
-#ifdef _WIN32
-  explicit File(const wchar_t* filepath);
-#else
-  explicit File(const char* filepath);
-#endif  // _WIN32
+// Write data to file atomically (temp file + rename). Returns true on success.
+bool WriteFile(const std::filesystem::path& filepath, const uint8_t* data, size_t size);
 
-  ~File() {
-    if (fp_ != nullptr)
-      UnMapFile(size_);
-  }
-
-  // Disallow copy and assign.
-  File(const File&) = delete;
-  File& operator=(const File&) = delete;
-
-  void* GetFilePointer() const {
-    return fp_;
-  }
-
-  size_t GetSize() const {
-    return size_;
-  }
-
-  bool IsOK() const {
-    return fp_ != nullptr;
-  }
-
-  void UnMapFile(size_t new_size);
-
- private:
-#ifdef _WIN32
-  HANDLE hFile_ = INVALID_HANDLE_VALUE;
-  HANDLE hMap_ = INVALID_HANDLE_VALUE;
-#else
-  int fd_ = -1;
-#endif  // _WIN32
-  void* fp_ = nullptr;
-  size_t size_ = 0;
-};
-
-#ifdef _WIN32
-void TraversePath(const wchar_t* dir, int Callback(const wchar_t* file_path));
-#else
-void TraversePath(const char* dir, int Callback(const char* file_path, const struct stat* sb, int typeflag));
-#endif  // _WIN32
+// Collect all regular files under a path (recursively for directories).
+std::vector<std::filesystem::path> CollectFiles(const std::filesystem::path& path);
 
 #endif  // FILEIO_H_
