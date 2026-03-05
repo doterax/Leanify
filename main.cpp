@@ -164,7 +164,6 @@ int main(int argc, char** argv) {
   is_fast = false;
   is_verbose = false;
   iterations = 15;
-  depth = 1;
   max_depth = INT_MAX;
   zopflipng_lossy_transparent = true;
 

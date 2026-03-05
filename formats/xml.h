@@ -9,7 +9,7 @@ extern bool is_verbose;
 
 class Xml : public Format {
  public:
-  Xml(void* p, size_t s);
+  Xml(void* p, size_t s, int depth = 1);
 
   bool IsValid() const {
     return is_valid_;

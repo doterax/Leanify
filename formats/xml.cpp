@@ -15,7 +15,7 @@ using std::map;
 using std::string;
 using std::vector;
 
-Xml::Xml(void* p, size_t s) : Format(p, s) {
+Xml::Xml(void* p, size_t s, int depth) : Format(p, s, depth) {
   pugi::xml_parse_result result = doc_.load_buffer(
       fp_, size_, pugi::parse_default | pugi::parse_declaration | pugi::parse_doctype | pugi::parse_ws_pcdata_single);
   is_valid_ = result;
@@ -189,9 +189,7 @@ size_t Xml::Leanify(size_t size_leanified /*= 0*/) {
   // if the XML is fb2 file
   if (doc_.child("FictionBook")) {
     VerbosePrint("FB2 detected.");
-    if (depth < max_depth) {
-      depth++;
-
+    if (depth_ < max_depth) {
       pugi::xml_node root = doc_.child("FictionBook");
 
       // iterate through all binary element
@@ -203,7 +201,7 @@ size_t Xml::Leanify(size_t size_leanified /*= 0*/) {
           continue;
         }
 
-        PrintFileName(id.value());
+        PrintFileName(id.value(), depth_ + 1);
 
         const char* base64_data = binary.child_value();
         if (base64_data == nullptr || base64_data[0] == 0) {
@@ -214,14 +212,13 @@ size_t Xml::Leanify(size_t size_leanified /*= 0*/) {
         // copy to a new location because base64_data is const
         vector<char> new_base64_data(base64_data, base64_data + base64_len + 1);
 
-        size_t new_base64_len = Base64(new_base64_data.data(), base64_len).Leanify();
+        size_t new_base64_len = Base64(new_base64_data.data(), base64_len, depth_ + 1).Leanify();
 
         if (new_base64_len < base64_len) {
           new_base64_data[new_base64_len] = 0;
           binary.text() = new_base64_data.data();
         }
       }
-      depth--;
     }
   } else if (doc_.child("svg")) {
     VerbosePrint("SVG detected.");

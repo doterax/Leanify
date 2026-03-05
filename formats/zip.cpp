@@ -126,8 +126,6 @@ bool GetCDHeaders(const uint8_t* fp, size_t size, const EOCD& eocd, size_t zip_o
 }  // namespace
 
 size_t Zip::Leanify(size_t size_leanified /*= 0*/) {
-  depth++;
-
   uint8_t* first_local_header = std::search(fp_, fp_ + size_, header_magic, std::end(header_magic));
   // The offset of the first local header, we should keep everything before this offset.
   size_t zip_offset = first_local_header - fp_;
@@ -204,8 +202,8 @@ size_t Zip::Leanify(size_t size_leanified /*= 0*/) {
 
     string filename(reinterpret_cast<char*>(local_header) + sizeof(LocalHeader), local_header->filename_len);
     // do not output filename if it is a directory
-    if ((local_header->compressed_size || local_header->compression_method) && depth <= max_depth)
-      PrintFileName(filename);
+    if ((local_header->compressed_size || local_header->compression_method) && depth_ < max_depth)
+      PrintFileName(filename, depth_ + 1);
 
     p_read += header_size;
     p_write += header_size;
@@ -220,7 +218,7 @@ size_t Zip::Leanify(size_t size_leanified /*= 0*/) {
     if (local_header->compression_method == 0) {
       // method is store
       if (local_header->compressed_size) {
-        uint32_t new_size = LeanifyFile(p_read, local_header->compressed_size, p_read - p_write, filename);
+        uint32_t new_size = LeanifyFile(p_read, local_header->compressed_size, p_read - p_write, filename, depth_ + 1);
         cd_header.crc32 = local_header->crc32 = lodepng_crc32(p_write, new_size);
         cd_header.compressed_size = local_header->compressed_size = new_size;
         cd_header.uncompressed_size = local_header->uncompressed_size = new_size;
@@ -270,7 +268,7 @@ size_t Zip::Leanify(size_t size_leanified /*= 0*/) {
     }
 
     // Leanify uncompressed file
-    uint32_t new_uncomp_size = LeanifyFile(decompress_buf, decompressed_size, 0, filename);
+    uint32_t new_uncomp_size = LeanifyFile(decompress_buf, decompressed_size, 0, filename, depth_ + 1);
 
     // recompress
     uint8_t bp = 0, *compress_buf = nullptr;

@@ -21,5 +21,5 @@ size_t Gft::Leanify(size_t size_leanified /*= 0*/) {
     fp_ -= size_leanified;
   }
 
-  return header_size + LeanifyFile(fp_ + size_leanified + header_size, size_ - header_size, size_leanified);
+  return header_size + LeanifyFile(fp_ + size_leanified + header_size, size_ - header_size, size_leanified, "", depth_);
 }

@@ -5,8 +5,8 @@
 
 class Lua : public Format {
  public:
-  Lua(void* p, size_t s)
-      : Format(p, s), p_read_(static_cast<uint8_t*>(p)), p_write_(static_cast<uint8_t*>(p)) {}
+  Lua(void* p, size_t s, int depth = 1)
+      : Format(p, s, depth), p_read_(static_cast<uint8_t*>(p)), p_write_(static_cast<uint8_t*>(p)) {}
 
   size_t Leanify(size_t size_leanified = 0) override;
 

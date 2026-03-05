@@ -7,16 +7,12 @@
 
 extern bool is_fast;
 extern int iterations;
-extern int depth;
 
 class Zip : public Format {
  public:
-  Zip(void* p, size_t s) : Format(p, s) {
+  Zip(void* p, size_t s, int depth = 1) : Format(p, s, depth) {
     ZopfliInitOptions(&zopfli_options_);
     zopfli_options_.numiterations = iterations;
-  }
-  ~Zip() {
-    depth--;
   }
 
   size_t Leanify(size_t size_leanified = 0) override;

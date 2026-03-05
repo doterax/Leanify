@@ -192,7 +192,7 @@ size_t Swf::Leanify(size_t size_leanified /*= 0*/) {
         *(uint16_t*)(p - tag_size_leanified) = *(uint16_t*)p;
 
         // Leanify embedded image
-        size_t new_size = LeanifyFile(p + 2, tag_length - 2, tag_size_leanified);
+        size_t new_size = LeanifyFile(p + 2, tag_length - 2, tag_size_leanified, "", depth_);
 
         UpdateTagLength(p - tag_size_leanified, tag_header_length, 2 + new_size);
         tag_size_leanified += tag_length - 2 - new_size;
@@ -218,7 +218,7 @@ size_t Swf::Leanify(size_t size_leanified /*= 0*/) {
         }
 
         // Leanify embedded image
-        size_t new_img_size = LeanifyFile(p + header_size, img_size, tag_size_leanified);
+        size_t new_img_size = LeanifyFile(p + header_size, img_size, tag_size_leanified, "", depth_);
         *(uint32_t*)(p + 2 - tag_size_leanified) = new_img_size;
 
         // recompress alpha data

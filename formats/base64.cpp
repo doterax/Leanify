@@ -112,7 +112,7 @@ size_t Base64::Leanify(size_t size_leanified /*= 0*/) {
   }
 
   // Leanify embedded file
-  binary_len = LeanifyFile(binary_data.data(), binary_len);
+  binary_len = LeanifyFile(binary_data.data(), binary_len, 0, "", depth_);
 
   fp_ -= size_leanified;
   // encode back

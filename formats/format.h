@@ -9,7 +9,7 @@
 class Format {
  public:
   explicit Format(std::vector<uint8_t>& data) : fp_(data.data()), size_(data.size()) {}
-  Format(void* p, size_t s) : fp_(static_cast<uint8_t*>(p)), size_(s) {}
+  Format(void* p, size_t s, int depth = 1) : fp_(static_cast<uint8_t*>(p)), size_(s), depth_(depth) {}
 
   virtual ~Format() = default;
 
@@ -31,6 +31,8 @@ class Format {
   uint8_t* fp_;
   // size of the file
   size_t size_;
+  // current recursion depth for nested format processing
+  int depth_;
 };
 
 #endif  // FORMATS_FORMAT_H_

@@ -30,7 +30,7 @@ int CalcChecksum(uint8_t* header) {
 
 }  // namespace
 
-Tar::Tar(void* p, size_t s) : Format(p, s) {
+Tar::Tar(void* p, size_t s, int depth) : Format(p, s, depth) {
   // check file size first
   is_valid_ = s > 512 && s % 512 == 0 && CalcChecksum(fp_) == strtol(static_cast<char*>(p) + 148, nullptr, 8);
 }
@@ -42,7 +42,6 @@ size_t Tar::Leanify(size_t size_leanified /*= 0*/) {
   uint8_t* p_read = fp_;
   fp_ -= size_leanified;
   uint8_t* p_write = fp_;
-  depth++;
 
   do {
     int checksum = CalcChecksum(p_read);
@@ -63,12 +62,12 @@ size_t Tar::Leanify(size_t size_leanified /*= 0*/) {
     // align to 512
     size_t size_aligned = RoundUp(original_size, 512);
     if (original_size) {
-      if ((type == 0 || type == '0') && depth <= max_depth) {
+      if ((type == 0 || type == '0') && depth_ < max_depth) {
         // normal file
         char* filename = reinterpret_cast<char*>(p_write);
-        PrintFileName(filename);
+        PrintFileName(filename, depth_ + 1);
 
-        size_t new_size = LeanifyFile(p_read, original_size, size_leanified, filename);
+        size_t new_size = LeanifyFile(p_read, original_size, size_leanified, filename, depth_ + 1);
         if (new_size < original_size) {
           // write new size
           snprintf(reinterpret_cast<char*>(p_write) + 124, 12, "%011o", (unsigned int)new_size);
@@ -102,8 +101,6 @@ size_t Tar::Leanify(size_t size_leanified /*= 0*/) {
     p_write += 512;
 
   } while (p_write < fp_ + size_);
-
-  depth--;
 
   // write 2 more zero-filled records
   memset(p_write, 0, 1024);

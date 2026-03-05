@@ -55,7 +55,7 @@ size_t DataURI::Leanify(size_t size_leanified /*= 0*/) {
       }
       cout << endl;
     }
-    size_t new_size = Base64(p_read, end - p_read).Leanify(p_read - p_write);
+    size_t new_size = Base64(p_read, end - p_read, depth_).Leanify(p_read - p_write);
     p_write += new_size;
     p_read = end;
   }

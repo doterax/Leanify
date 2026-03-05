@@ -22,7 +22,6 @@ size_t Rdb::Leanify(size_t size_leanified /*= 0*/) {
     return Format::Leanify(size_leanified);
   }
 
-  depth++;
   uint8_t* p_read = fp_;
   size_t rdb_size_leanified = 0;
 
@@ -86,14 +85,14 @@ size_t Rdb::Leanify(size_t size_leanified /*= 0*/) {
       continue;
     }
 
-    if (depth <= max_depth) {
+    if (depth_ < max_depth) {
       // output filename
       char mbs[256] = { 0 };
       UTF16toMBS(file_name, p_index - reinterpret_cast<uint8_t*>(file_name), mbs, sizeof(mbs));
-      PrintFileName(mbs);
+      PrintFileName(mbs, depth_ + 1);
 
       // Leanify inner file
-      size_t new_size = LeanifyFile(p_read, (size_t)file_size, rdb_size_leanified + size_leanified, mbs);
+      size_t new_size = LeanifyFile(p_read, (size_t)file_size, rdb_size_leanified + size_leanified, mbs, depth_ + 1);
       if (new_size != file_size) {
         // update the size in index
         *(uint64_t*)(p_index + 8) = new_size;
@@ -108,6 +107,5 @@ size_t Rdb::Leanify(size_t size_leanified /*= 0*/) {
     p_index += 16;
   }
   size_ = p_read - fp_ - size_leanified - rdb_size_leanified;
-  depth--;
   return size_;
 }

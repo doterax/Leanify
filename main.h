@@ -15,7 +15,6 @@ bool zopflipng_lossy_transparent;
 
 // a normal file: depth 1
 // file inside zip that is inside another zip: depth 3
-int depth;
 int max_depth;
 bool parallel_processing = false;
 

@@ -27,7 +27,6 @@ size_t Gz::Leanify(size_t size_leanified /*= 0*/) {
     return Format::Leanify(size_leanified);
   }
 
-  depth++;
   uint8_t flags = *(fp_ + 3);
 
   memmove(fp_ - size_leanified, fp_, 10);
@@ -50,7 +49,7 @@ size_t Gz::Leanify(size_t size_leanified /*= 0*/) {
   // FNAME
   if (flags & (1 << 3)) {
     filename.assign(reinterpret_cast<char*>(p_read));
-    PrintFileName(filename);
+    PrintFileName(filename, depth_ + 1);
     while (p_read < fp_ + size_ && *p_read++) {
       // skip string
     }
@@ -93,7 +92,7 @@ size_t Gz::Leanify(size_t size_leanified /*= 0*/) {
     return size_ - (p_read - p_write);
   }
 
-  uncompressed_size = LeanifyFile(buffer, uncompressed_size, 0, filename);
+  uncompressed_size = LeanifyFile(buffer, uncompressed_size, 0, filename, depth_ + 1);
 
   ZopfliOptions options;
   ZopfliInitOptions(&options);
@@ -114,7 +113,6 @@ size_t Gz::Leanify(size_t size_leanified /*= 0*/) {
   }
   free(buffer);
   free(out);
-  depth--;
   fp_ -= size_leanified;
   size_ = p_write + 8 - fp_;
   return size_;

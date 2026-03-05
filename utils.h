@@ -6,7 +6,7 @@
 #include <iostream>
 #include <string>
 
-extern int depth;
+extern int max_depth;
 extern bool is_verbose;
 
 #ifdef _MSC_VER
@@ -25,7 +25,7 @@ extern bool is_verbose;
 
 void UTF16toMBS(const wchar_t* u, size_t srclen, char* mbs, size_t dstlen);
 
-void PrintFileName(const std::string& name);
+void PrintFileName(const std::string& name, int depth);
 
 std::string ShrinkSpace(const char* value);
 

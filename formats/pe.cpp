@@ -228,12 +228,10 @@ size_t Pe::Leanify(size_t size_leanified /*= 0*/) {
                     rsrc_virtual_address);
       }
 
-      depth++;
-
       for (auto& res : rsrc_data_) {
-        if (depth <= max_depth) {
+        if (depth_ < max_depth) {
           // print resource name
-          PrintFileName(res.name);
+          PrintFileName(res.name, depth_ + 1);
         }
 
         // The offset of the data entry itself.
@@ -265,12 +263,12 @@ size_t Pe::Leanify(size_t size_leanified /*= 0*/) {
         }
 
         size_t new_size = LeanifyFile(fp_ + rsrc_raw_offset + entry->OffsetToData - rsrc_virtual_address, entry->Size,
-                                      entry->OffsetToData - last_end + pe_size_leanified + size_leanified, res.name);
+                                      entry->OffsetToData - last_end + pe_size_leanified + size_leanified, res.name,
+                                      depth_ + 1);
         entry->OffsetToData = last_end;
         entry->Size = new_size;
         last_end += new_size;
       }
-      depth--;
       rsrc_size_leanified = old_end - last_end;
       uint32_t rsrc_new_end = rsrc_raw_offset + last_end - rsrc_virtual_address;
       uint32_t rsrc_new_end_aligned = RoundUp(rsrc_new_end, optional_header->FileAlignment);
