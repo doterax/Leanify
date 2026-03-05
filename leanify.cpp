@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <memory>
 
 #include <zopfli/zlib_container.h>
 #include <zopflipng/lodepng/lodepng.h>
@@ -29,10 +30,10 @@ using std::cerr;
 using std::endl;
 using std::string;
 
-Format* GetType(void* file_pointer, size_t file_size, const string& filename, int depth) {
+std::unique_ptr<Format> GetType(void* file_pointer, size_t file_size, const string& filename, int depth) {
   if (depth > max_depth) {
     VerbosePrint("Max depth ", max_depth, " reached, skipping.");
-    return new Format(file_pointer, file_size, depth);
+    return std::make_unique<Format>(file_pointer, file_size, depth);
   }
 
   if (!filename.empty()) {
@@ -45,53 +46,53 @@ Format* GetType(void* file_pointer, size_t file_size, const string& filename, in
 
       if (ext == "HTML" || ext == "HTM" || ext == "JS" || ext == "CSS") {
         VerbosePrint(ext, " detected.");
-        return new DataURI(file_pointer, file_size, depth);
+        return std::make_unique<DataURI>(file_pointer, file_size, depth);
       }
       if (ext == "VCF" || ext == "VCARD") {
         VerbosePrint(ext, " detected.");
-        return new Vcf(file_pointer, file_size, depth);
+        return std::make_unique<Vcf>(file_pointer, file_size, depth);
       }
       if (ext == "MHT" || ext == "MHTML" || ext == "MIM" || ext == "MIME" || ext == "EML") {
         VerbosePrint(ext, " detected.");
-        return new Mime(file_pointer, file_size, depth);
+        return std::make_unique<Mime>(file_pointer, file_size, depth);
       }
     }
   }
   if (memcmp(file_pointer, Png::header_magic, sizeof(Png::header_magic)) == 0) {
     VerbosePrint("PNG detected.");
-    return new Png(file_pointer, file_size, depth);
+    return std::make_unique<Png>(file_pointer, file_size, depth);
   } else if (memcmp(file_pointer, Jpeg::header_magic, sizeof(Jpeg::header_magic)) == 0) {
     VerbosePrint("JPEG detected.");
-    return new Jpeg(file_pointer, file_size, depth);
+    return std::make_unique<Jpeg>(file_pointer, file_size, depth);
   } else if (memcmp(file_pointer, Lua::header_magic, sizeof(Lua::header_magic)) == 0) {
     VerbosePrint("Lua detected.");
-    return new Lua(file_pointer, file_size, depth);
+    return std::make_unique<Lua>(file_pointer, file_size, depth);
   } else if (memcmp(file_pointer, Zip::header_magic, sizeof(Zip::header_magic)) == 0) {
     VerbosePrint("ZIP detected.");
-    return new Zip(file_pointer, file_size, depth);
+    return std::make_unique<Zip>(file_pointer, file_size, depth);
   } else if (memcmp(file_pointer, Pe::header_magic, sizeof(Pe::header_magic)) == 0) {
     VerbosePrint("PE detected.");
-    return new Pe(file_pointer, file_size, depth);
+    return std::make_unique<Pe>(file_pointer, file_size, depth);
   } else if (memcmp(file_pointer, Gz::header_magic, sizeof(Gz::header_magic)) == 0) {
     VerbosePrint("GZ detected.");
-    return new Gz(file_pointer, file_size, depth);
+    return std::make_unique<Gz>(file_pointer, file_size, depth);
   } else if (memcmp(file_pointer, Ico::header_magic, sizeof(Ico::header_magic)) == 0) {
     VerbosePrint("ICO detected.");
-    return new Ico(file_pointer, file_size, depth);
+    return std::make_unique<Ico>(file_pointer, file_size, depth);
   } else if (memcmp(file_pointer, Dwf::header_magic, sizeof(Dwf::header_magic)) == 0) {
     VerbosePrint("DWF detected.");
-    return new Dwf(file_pointer, file_size, depth);
+    return std::make_unique<Dwf>(file_pointer, file_size, depth);
   } else if (memcmp(file_pointer, Gft::header_magic, sizeof(Gft::header_magic)) == 0) {
     VerbosePrint("GFT detected.");
-    return new Gft(file_pointer, file_size, depth);
+    return std::make_unique<Gft>(file_pointer, file_size, depth);
   } else if (memcmp(file_pointer, Rdb::header_magic, sizeof(Rdb::header_magic)) == 0) {
     VerbosePrint("RDB detected.");
-    return new Rdb(file_pointer, file_size, depth);
+    return std::make_unique<Rdb>(file_pointer, file_size, depth);
   } else if (memcmp(file_pointer, Swf::header_magic, sizeof(Swf::header_magic)) == 0 ||
              memcmp(file_pointer, Swf::header_magic_deflate, sizeof(Swf::header_magic_deflate)) == 0 ||
              memcmp(file_pointer, Swf::header_magic_lzma, sizeof(Swf::header_magic_lzma)) == 0) {
     VerbosePrint("SWF detected.");
-    return new Swf(file_pointer, file_size, depth);
+    return std::make_unique<Swf>(file_pointer, file_size, depth);
   } else {
     // Search for vcard magic which might not be at the very beginning.
     const string vcard_magic = "BEGIN:VCARD";
@@ -99,36 +100,34 @@ Format* GetType(void* file_pointer, size_t file_size, const string& filename, in
     const char* search_end = fp + std::min(static_cast<size_t>(1024), file_size);
     if (std::search(fp, search_end, vcard_magic.begin(), vcard_magic.end()) < search_end) {
       VerbosePrint("VCF detected.");
-      return new Vcf(file_pointer, file_size, depth);
+      return std::make_unique<Vcf>(file_pointer, file_size, depth);
     }
 
     // tar file does not have header magic
     // ustar is optional
     {
-      Tar* t = new Tar(file_pointer, file_size, depth);
+      auto t = std::make_unique<Tar>(file_pointer, file_size, depth);
       // checking first record checksum
       if (t->IsValid()) {
         VerbosePrint("tar detected.");
         return t;
       }
-      delete t;
     }
 
     // XML file does not have header magic
     // have to parse and see if there are any errors.
     {
-      Xml* x = new Xml(file_pointer, file_size, depth);
+      auto x = std::make_unique<Xml>(file_pointer, file_size, depth);
       if (x->IsValid()) {
         VerbosePrint("XML detected.");
         return x;
       }
-      delete x;
     }
   }
 
   VerbosePrint("Format not supported!");
   // for unsupported format, just memmove it.
-  return new Format(file_pointer, file_size, depth);
+  return std::make_unique<Format>(file_pointer, file_size, depth);
 }
 
 // Leanify the file
@@ -141,10 +140,8 @@ size_t LeanifyFile(void* file_pointer, size_t file_size, size_t size_leanified /
   if (file_pointer == nullptr || file_size == 0) {
     return file_size;
   }
-  Format* f = GetType(file_pointer, file_size, filename, depth);
-  size_t r = f->Leanify(size_leanified);
-  delete f;
-  return r;
+  auto f = GetType(file_pointer, file_size, filename, depth);
+  return f->Leanify(size_leanified);
 }
 
 size_t ZlibRecompress(uint8_t* src, size_t src_len, size_t size_leanified /*= 0*/) {
