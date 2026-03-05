@@ -4,11 +4,14 @@
 #include <cstring>
 #include <iomanip>
 #include <iostream>
+#include <string>
+#include <vector>
 
 #ifndef _WIN32
 #include <ftw.h>
 #endif
 
+#include <CLI/CLI11.hpp>
 #include <taskflow/taskflow.hpp>
 
 #include "fileio.h"
@@ -114,35 +117,6 @@ void PauseIfNotTerminal() {
 #endif  // _WIN32
 }
 
-
-void PrintInfo() {
-  cerr << "Leanify\t" << VERSION_STR << endl << endl;
-  cerr << "Usage: leanify [options] paths\n"
-          "  -i, --iteration <iteration>   More iterations may produce better result, but\n"
-          "                                  use more time, default is 15.\n"
-          "  -d, --max_depth <max depth>   Maximum recursive depth, unlimited by default.\n"
-          "                                  Set to 1 will disable recursive minifying.\n"
-          "  -f, --fastmode                Fast mode, no recompression.\n"
-          "  -q, --quiet                   No output to stdout.\n"
-          "  -v, --verbose                 Verbose output.\n"
-          "  -p, --parallel                Distribute all tasks to all CPUs.\n"
-          "  -l, --library <path>          Use library to store and reuse alreary compressed files."
-          "                                  Set * will automatically use temporary folder."
-          "  --keep-exif                   Do not remove Exif.\n"
-          "  --keep-icc                    Do not remove ICC profile.\n"
-          "\n"
-          "JPEG options:\n"
-          "  --jpeg-keep-all               Do not remove any metadata or comments in JPEG.\n"
-          "  --jpeg-arithmetic             Use arithmetic coding for JPEG.\n"
-          "\n"
-          "PNG options:\n"
-          "  --png-lossless-transparent    Prohibit altering hidden colors of fully transparent pixels.\n"
-          "ZIP options:\n"
-          "  --zip-deflate                 Try deflate even if not compressed originally.\n";
-
-  PauseIfNotTerminal();
-}
-
 tf::Taskflow taskflow;
 
 #ifdef _WIN32
@@ -169,7 +143,18 @@ int EnqueueProcessFileTask(const char* file_path, const struct stat* sb = nullpt
 int main() {
   int argc;
   wchar_t* command_line = GetCommandLineW();
-  wchar_t** argv = CommandLineToArgvW(command_line, &argc);
+  wchar_t** wargv = CommandLineToArgvW(command_line, &argc);
+
+  // Convert wide argv to UTF-8 for CLI11
+  std::vector<std::string> arg_strings(argc);
+  std::vector<char*> argv_ptrs(argc);
+  for (int a = 0; a < argc; a++) {
+    int len = WideCharToMultiByte(CP_UTF8, 0, wargv[a], -1, nullptr, 0, nullptr, nullptr);
+    arg_strings[a].resize(len);
+    WideCharToMultiByte(CP_UTF8, 0, wargv[a], -1, &arg_strings[a][0], len, nullptr, nullptr);
+    argv_ptrs[a] = &arg_strings[a][0];
+  }
+  char** argv = argv_ptrs.data();
 #else
 int main(int argc, char** argv) {
 #endif  // _WIN32
@@ -181,167 +166,130 @@ int main(int argc, char** argv) {
   max_depth = INT_MAX;
   zopflipng_lossy_transparent = true;
 
-#ifdef _WIN32
-  std::wstring library_path;
-#else
   std::string library_path;
-#endif  // _WIN32
+  bool quiet = false;
+  bool keep_exif = false;
+  bool keep_icc = false;
+  bool jpeg_keep_all = false;
+  bool jpeg_arithmetic = false;
+  bool png_lossless_transparent = false;
+  bool zip_deflate = false;
+  std::vector<std::string> paths;
+
 #ifdef _WIN32
   is_pause = !getenv("PROMPT");
 #endif  // _WIN32
 
-  int i;
-  for (i = 1; i < argc && argv[i][0] == L'-'; i++) {
+  CLI::App app{"Leanify " VERSION_STR "\nFork: https://github.com/doterax/Leanify"};
+  app.get_formatter()->column_width(40);
+
+  app.add_option("-i,--iteration", iterations,
+                 "More iterations may produce better result, but\n"
+                 "  use more time, default is 15.")
+      ->check(CLI::PositiveNumber);
+
+  app.add_option("-d,--max_depth", max_depth,
+                 "Maximum recursive depth, unlimited by default.\n"
+                 "  Set to 1 will disable recursive minifying.")
+      ->check(CLI::PositiveNumber);
+
+  app.add_flag("-f,--fastmode", is_fast, "Fast mode, no recompression.");
+  app.add_flag("-q,--quiet", quiet, "No output to stdout.");
+  app.add_flag("-v,--verbose", is_verbose, "Verbose output.");
+  app.add_flag("-p,--parallel", parallel_processing, "Distribute all tasks to all CPUs.");
+
+  app.add_option("-l,--library", library_path,
+                 "Use library to store and reuse already compressed files.\n"
+                 "  Set * will automatically use temporary folder.");
+
+  app.add_flag("--keep-exif", keep_exif, "Do not remove Exif.");
+  app.add_flag("--keep-icc", keep_icc, "Do not remove ICC profile.");
+
+  // JPEG options
+  app.add_flag("--jpeg-keep-all", jpeg_keep_all,
+               "Do not remove any metadata or comments in JPEG.");
+  app.add_flag("--jpeg-arithmetic", jpeg_arithmetic,
+               "Use arithmetic coding for JPEG.");
+
+  // PNG options
+  app.add_flag("--png-lossless-transparent", png_lossless_transparent,
+               "Prohibit altering hidden colors of fully transparent pixels.");
+
+  // ZIP options
+  app.add_flag("--zip-deflate", zip_deflate,
+               "Try deflate even if not compressed originally.");
+
+  app.add_option("paths", paths, "File or directory paths to process")
+      ->required();
+
+  CLI11_PARSE(app, argc, argv);
+
 #ifdef _WIN32
-    // do not pause if any options are given
+  // Any options given -> do not pause
+  if (argc > 1)
     is_pause = false;
 #endif  // _WIN32
-    int num_optargs = 0;
-    for (int j = 1; argv[i][j]; j++) {
-      switch (argv[i][j]) {
-        case 'f':
-          is_fast = true;
-          break;
-        case 'i':
-          if (i < argc - 1) {
-            iterations = STRTOL(argv[i + ++num_optargs], nullptr, 10);
-            // strtol will return 0 on fail
-            if (iterations == 0) {
-              cerr << "There should be a positive number after -i option." << endl;
-              PrintInfo();
-              return 1;
-            }
-          }
-          break;
-        case 'd':
-          if (i < argc - 1) {
-            max_depth = STRTOL(argv[i + ++num_optargs], nullptr, 10);
-            // strtol will return 0 on fail
-            if (max_depth == 0) {
-              cerr << "There should be a positive number after -d option." << endl;
-              PrintInfo();
-              return 1;
-            }
-          }
-          break;
-        case 'l':
-          if (i < argc - 1) {
-            auto value = argv[i + ++num_optargs];
-            library_path = value;
-          }
-          break;
-        case 'q':
-          cout.setstate(std::ios::failbit);
-          is_verbose = false;
-          break;
-        case 'v':
-          cout.clear();
-          is_verbose = true;
-          break;
-        case 'p':
-          parallel_processing = true;
-          break;
-        case '-':
-          if (STRCMP(argv[i] + j + 1, "fastmode") == 0) {
-            j += 7;
-            argv[i][j + 1] = 'f';
-          } else if (STRCMP(argv[i] + j + 1, "iteration") == 0) {
-            j += 8;
-            argv[i][j + 1] = 'i';
-          } else if (STRCMP(argv[i] + j + 1, "max_depth") == 0) {
-            j += 8;
-            argv[i][j + 1] = 'd';
-          } else if (STRCMP(argv[i] + j + 1, "quiet") == 0) {
-            j += 4;
-            argv[i][j + 1] = 'q';
-          } else if (STRCMP(argv[i] + j + 1, "verbose") == 0) {
-            j += 6;
-            argv[i][j + 1] = 'v';
-          } else if (STRCMP(argv[i] + j + 1, "parallel") == 0) {
-            j += 7;
-            argv[i][j + 1] = 'p';
-          } else if (STRCMP(argv[i] + j + 1, "library") == 0) {
-            j += 6;
-            argv[i][j + 1] = 'l';
-          } else if (STRCMP(argv[i] + j + 1, "keep-exif") == 0) {
-            j += 9;
-            Jpeg::keep_exif_ = true;
-          } else if (STRCMP(argv[i] + j + 1, "keep-icc") == 0) {
-            j += 8;
-            Jpeg::keep_icc_profile_ = true;
-            Png::keep_icc_profile_ = true;
-          } else if (STRCMP(argv[i] + j + 1, "jpeg-keep-all") == 0) {
-            j += 13;
-            Jpeg::keep_all_metadata_ = true;
-          } else if (STRCMP(argv[i] + j + 1, "jpeg-arithmetic") == 0) {
-            j += 15;
-            Jpeg::force_arithmetic_coding_ = true;
-          } else if (STRCMP(argv[i] + j + 1, "png-lossless-transparent") == 0) {
-            j += 24;
-            zopflipng_lossy_transparent = false;
-          } else if (STRCMP(argv[i] + j + 1, "zip-deflate") == 0) {
-            j += 11;
-            Zip::force_deflate_ = true;
-          } else {
-#ifdef _WIN32
-            char mbs[64] = { 0 };
-            WideCharToMultiByte(CP_ACP, 0, argv[i] + j + 1, -1, mbs, sizeof(mbs) - 1, nullptr, nullptr);
-            cerr << "Unknown option: " << mbs << endl;
-#else
-            cerr << "Unknown option: " << argv[i] + j + 1 << endl;
-#endif  // _WIN32
-            PrintInfo();
-            return 1;
-          }
-          break;
-        default:
-          cerr << "Unknown option: " << (char)argv[i][j] << endl;
-          PrintInfo();
-          return 1;
-      }
-    }
-    i += num_optargs;
+
+  // Apply parsed flags to statics
+  if (quiet) {
+    cout.setstate(std::ios::failbit);
+    is_verbose = false;
   }
 
   if (parallel_processing && is_verbose) {
     cerr << "Verbose logs not supported in parallel mode." << endl;
-    PrintInfo();
     return 1;
   }
 
-  if (i == argc) {
-    cerr << "No file path provided." << endl;
-    PrintInfo();
-    return 1;
-  }
+  Jpeg::keep_exif_ = keep_exif;
+  Jpeg::keep_icc_profile_ = keep_icc;
+  Png::keep_icc_profile_ = keep_icc;
+  Jpeg::keep_all_metadata_ = jpeg_keep_all;
+  Jpeg::force_arithmetic_coding_ = jpeg_arithmetic;
+  zopflipng_lossy_transparent = !png_lossless_transparent;
+  Zip::force_deflate_ = zip_deflate;
 
   cout << std::fixed;
   cout.precision(2);
 
-  if (library_path.size() > 0) {
+  if (!library_path.empty()) {
     try {
+#ifdef _WIN32
+      // Convert UTF-8 library path back to wide string for Windows API
+      int wlen = MultiByteToWideChar(CP_UTF8, 0, library_path.c_str(), -1, nullptr, 0);
+      std::wstring wlibrary(wlen, 0);
+      MultiByteToWideChar(CP_UTF8, 0, library_path.c_str(), -1, &wlibrary[0], wlen);
+      Library::Initialize(wlibrary);
+#else
       Library::Initialize(library_path);
+#endif
       cout << "Library storage: " << Library::GetStorageName() << endl << endl;
     } catch (const std::runtime_error& e) {
       cerr << "Error: " << e.what() << endl << endl;
-      PrintInfo();
       return 1;
     }
   }
-    
 
-  // support multiple input file
-  do {
-    TraversePath(argv[i], EnqueueProcessFileTask);
-  } while (++i < argc);
+  // Process all input paths
+  for (const auto& path : paths) {
+#ifdef _WIN32
+    // Convert UTF-8 path to wide string for Windows TraversePath
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, nullptr, 0);
+    std::wstring wpath(wlen, 0);
+    MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, &wpath[0], wlen);
+    TraversePath(wpath.c_str(), EnqueueProcessFileTask);
+#else
+    TraversePath(path.c_str(), EnqueueProcessFileTask);
+#endif
+  }
 
   size_t parallel_tasks = 1;
   if (parallel_processing)
     parallel_tasks = std::thread::hardware_concurrency();
-  
+
   tf::Executor executor(parallel_tasks);
-  executor.run(taskflow).wait(); 
-  
+  executor.run(taskflow).wait();
+
   PauseIfNotTerminal();
 
   return 0;
