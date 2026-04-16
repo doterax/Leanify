@@ -24,6 +24,7 @@
 #include "fileio.h"
 #include "library.h"
 #include "formats/jpeg.h"
+#include "formats/json.h"
 #include "formats/png.h"
 #include "formats/zip.h"
 #include "leanify.h"
@@ -116,6 +117,12 @@ int ProcessFile(const std::filesystem::path& file_path) {
   size_t new_size(0);
   string libraryTag = ToString(iterations) + (zopflipng_lossy_transparent ? "lossy" : "lossless") +
                       (is_fast ? "no_zopflipng" : "zopflipng");
+  {
+    std::string ext = file_path.extension().string();
+    for (auto& c : ext) c = static_cast<char>(toupper(static_cast<unsigned char>(c)));
+    if (ext == ".JSON")
+      libraryTag += "json" + std::to_string(json_lossy_tolerance);
+  }
 
   bool reusedFromLibrary = false;
   auto libraryEntry = Library::GetEntry(data.data(), original_size, libraryTag.c_str());
@@ -201,6 +208,7 @@ int main(int argc, char** argv) {
   bool jpeg_arithmetic = false;
   bool png_lossless_transparent = false;
   bool zip_deflate = false;
+  double json_lossy = 0.0;
   std::vector<std::string> paths;
 
 #ifdef _WIN32
@@ -246,6 +254,13 @@ int main(int argc, char** argv) {
   app.add_flag("--zip-deflate", zip_deflate,
                "Try deflate even if not compressed originally.");
 
+  // JSON options
+  app.add_option("--json-lossy", json_lossy,
+                 "Enable lossy JSON number optimisation with given relative tolerance.\n"
+                 "  Numbers are shortened when the relative error is within the tolerance.\n"
+                 "  Example: 4.9999999999999->5, 3.2333333333->3.23333 (with 1e-6).\n"
+                 "  Default when omitted: 0 (lossless). Suggested value: 1e-6.");
+
   app.add_option("paths", paths, "File or directory paths to process")
       ->required();
 
@@ -275,6 +290,7 @@ int main(int argc, char** argv) {
   Jpeg::force_arithmetic_coding_ = jpeg_arithmetic;
   zopflipng_lossy_transparent = !png_lossless_transparent;
   Zip::force_deflate_ = zip_deflate;
+  json_lossy_tolerance = json_lossy;
 
   cout << std::fixed;
   cout.precision(2);

@@ -18,5 +18,10 @@ bool zopflipng_lossy_transparent;
 int max_depth;
 bool parallel_processing = false;
 
+// JSON lossy optimisation tolerance (relative).
+// 0.0  = lossless (comment stripping + whitespace removal only)
+// >0.0 = additionally shorten numbers within this relative tolerance
+double json_lossy_tolerance;
+
 
 #endif  // MAIN_H_

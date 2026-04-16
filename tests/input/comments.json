@@ -1,0 +1,18 @@
+// JSON with comments - lossless test
+// This file tests that comments are stripped and whitespace is removed
+{
+    // This is a line comment
+    "name": "test",  // inline comment
+    "version": 1,
+    /* This is a
+       block comment */
+    "features": [
+        "minification",  // removes whitespace
+        "comment stripping"  /* removes this too */
+    ],
+    "config": {
+        // nested comment
+        "enabled": true,
+        "count": 42
+    }
+}

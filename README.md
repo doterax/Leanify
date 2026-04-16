@@ -83,6 +83,18 @@ Leanify file inside and recompress deflate stream.
 Remove all optional section: `FEXTRA`, `FNAME`, `FCOMMENT`, `FHCRC`.
 
 
+#### JSON document (.json)
+
+Remove all comments (JSONC-style `//` and `/* */`), unnecessary whitespace.
+
+Normalize number exponents (`6.022e+023` → `6.022e23`).
+
+Convert exact-integer floats losslessly (`42.0` → `42`, `-0.0` → `0`).
+
+With `--json-lossy <tolerance>`, additionally shorten near-integer and repeating-decimal
+floats within the given relative tolerance (`4.9999999999999` → `5`, `3.2333333333` → `3.233333` at `1e-6`).
+
+
 #### Icon file (.ico)
 
 Convert 256x256 BMP to [PNG].
@@ -233,6 +245,19 @@ Usage: leanify [options] paths
   -v, --verbose                 Verbose output.
   -p, --parallel                Distribute all tasks to all CPUs.
   --keep-exif                   Do not remove Exif.
+  --keep-icc                    Do not remove ICC profile.
+  --jpeg-keep-all               Do not remove any metadata or comments in JPEG.
+  --jpeg-arithmetic             Use arithmetic coding for JPEG.
+  --png-lossless-transparent    Prohibit altering hidden colors of fully
+                                  transparent pixels.
+  --zip-deflate                 Try deflate even if not compressed originally.
+  --json-lossy <tolerance>      Enable lossy JSON number optimisation with given
+                                  relative tolerance. Numbers are shortened when
+                                  the relative error is within the tolerance.
+                                  Example: 4.9999999999999->5 (with 1e-6).
+                                  Default: 0 (lossless). Suggested value: 1e-6.
+  -l, --library <path>          Use library to store and reuse already
+                                  compressed files. Set * for a temp folder.
 ```
 
 
@@ -259,6 +284,7 @@ make
 
 
 [APK]: #apk-file-apk
+[JSON]: #json-document-json
 [PNG]: #png-image-png-apng
 [tar]: #tar-archive-tar
 [XML]: #xml-document-xml-xsl-xslt

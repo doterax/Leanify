@@ -202,6 +202,44 @@ else
 fi
 echo ""
 
+# --- Test 3: JSON lossy mode ---
+LOSSY_EXPECTED_DIR="$SCRIPT_DIR/output_lossy"
+
+if [ -d "$LOSSY_EXPECTED_DIR" ]; then
+    echo "=== Test: JSON Lossy Mode (--json-lossy 1e-6) ==="
+    LOSSY_TEMP="$TEMP_BASE/lossy"
+    mkdir -p "$LOSSY_TEMP"
+
+    LOSSY_OK=true
+    for f in "$LOSSY_EXPECTED_DIR"/*; do
+        [ -f "$f" ] || continue
+        fname="$(basename "$f")"
+        src="$INPUT_DIR/$fname"
+        if [ ! -f "$src" ]; then
+            echo "  SKIP: $fname (no matching input file)"
+            continue
+        fi
+        cp "$src" "$LOSSY_TEMP/$fname"
+        "$LEANIFY" --json-lossy 1e-6 "$(to_native "$LOSSY_TEMP/$fname")" >/dev/null 2>&1
+        if files_equal "$f" "$LOSSY_TEMP/$fname"; then
+            echo "  OK:   $fname"
+        else
+            EXPECTED_SIZE=$(wc -c < "$f" | tr -d ' ')
+            ACTUAL_SIZE=$(wc -c < "$LOSSY_TEMP/$fname" | tr -d ' ')
+            echo "  FAIL: $fname size mismatch (expected=$EXPECTED_SIZE, actual=$ACTUAL_SIZE)"
+            LOSSY_OK=false
+        fi
+    done
+
+    if $LOSSY_OK; then
+        echo "PASSED: JSON lossy mode test"
+    else
+        echo "FAILED: JSON lossy mode test"
+        FAILED=1
+    fi
+    echo ""
+fi
+
 # --- Summary ---
 if [ "$FAILED" -eq 0 ]; then
     echo "=== ALL TESTS PASSED ==="

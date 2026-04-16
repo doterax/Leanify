@@ -14,6 +14,7 @@
 #include "formats/gz.h"
 #include "formats/ico.h"
 #include "formats/jpeg.h"
+#include "formats/json.h"
 #include "formats/lua.h"
 #include "formats/mime.h"
 #include "formats/pe.h"
@@ -47,6 +48,10 @@ std::unique_ptr<Format> GetType(void* file_pointer, size_t file_size, const stri
       if (ext == "HTML" || ext == "HTM" || ext == "JS" || ext == "CSS") {
         VerbosePrint(ext, " detected.");
         return std::make_unique<DataURI>(file_pointer, file_size, depth);
+      }
+      if (ext == "JSON") {
+        VerbosePrint("JSON detected.");
+        return std::make_unique<Json>(file_pointer, file_size, depth);
       }
       if (ext == "VCF" || ext == "VCARD") {
         VerbosePrint(ext, " detected.");
