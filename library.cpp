@@ -54,8 +54,28 @@ class DirectoryStorage {
   }
 
   LibraryEntry GetEntry(void* data, size_t dataSize, const char* tag) {
-    auto hash = sha1(tag);
-    hash.add(data, dataSize);
+    // Bump this whenever the cache format or hashing scheme changes so that
+    // previously-written (potentially poisoned) entries are never reused.
+    static constexpr const char kLibraryVersion[] = "leanify-lib-v2";
+
+    sha1 hash;
+    hash.add(kLibraryVersion);
+    hash.add(tag);
+    // Feed the data in chunks to avoid the uint32_t size truncation in sha1::add.
+    const uint8_t* ptr = static_cast<const uint8_t*>(data);
+    constexpr size_t kChunk = 1u << 30;  // 1 GiB, well within uint32_t range
+    while (dataSize > 0) {
+      uint32_t n = static_cast<uint32_t>(std::min(dataSize, kChunk));
+      hash.add(ptr, n);
+      ptr += n;
+      dataSize -= n;
+    }
+    // SHA-1 must be finalized before reading the state, otherwise any bytes in
+    // the last (incomplete) 64-byte block and the message length are not mixed
+    // in, which causes hash collisions between inputs that share a prefix of a
+    // multiple of 64 bytes. That manifested as the library cache returning the
+    // wrong (cached) output for distinct JSON files.
+    hash.finalize();
     char hex[SHA1_HEX_SIZE];
     hash.print_hex(hex);
     return CreateEntry(hex);
